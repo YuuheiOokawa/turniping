@@ -1,0 +1,113 @@
+export type Instrument = {
+  code: string;
+  name: string;
+  kind: "individual" | "index";
+  last_price: number | null;
+  change_pct: number | null;
+};
+
+export type Candle = {
+  ts: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+};
+
+export type Prediction = {
+  id: number;
+  created_at: string;
+  horizon_minutes: number;
+  direction: "up" | "down";
+  confidence: number;
+  technical_score: number;
+  sentiment_score: number;
+  reference_price: number;
+  reasons: string[];
+};
+
+export type NewsArticle = {
+  id: number;
+  source: string;
+  url: string;
+  title: string;
+  summary: string | null;
+  published_at: string;
+  sentiment_score: number;
+  sentiment_label: "positive" | "negative" | "neutral";
+};
+
+export type PaperPosition = {
+  code: string;
+  name: string;
+  quantity: number;
+  avg_price: number;
+};
+
+export type PaperAccount = {
+  cash_jpy: number;
+  positions: PaperPosition[];
+};
+
+export type PaperOrder = {
+  id: number;
+  code: string;
+  side: "buy" | "sell";
+  quantity: number;
+  fill_price: number;
+  filled_at: string;
+};
+
+export type SystemStatus = {
+  now_jst: string;
+  market_open: boolean;
+  next_open_jst: string | null;
+};
+
+export type AccuracyStats = {
+  total_evaluated: number;
+  correct: number;
+  accuracy_pct: number | null;
+};
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`/api/backend/${path}`, {
+    ...init,
+    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`API error ${res.status}: ${detail}`);
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json();
+}
+
+export const api = {
+  systemStatus: () => request<SystemStatus>("system/status"),
+  instruments: () => request<Instrument[]>("market/instruments"),
+  candles: (code: string, timeframe: "1m" | "1d" = "1d", limit = 90) =>
+    request<Candle[]>(`market/instruments/${code}/candles?timeframe=${timeframe}&limit=${limit}`),
+  addWatchlist: (code: string) =>
+    request<{ code: string; name: string }>("market/watchlist", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
+  removeWatchlist: (code: string) =>
+    request<void>(`market/watchlist/${code}`, { method: "DELETE" }),
+  latestPrediction: (code: string) => request<Prediction | null>(`predictions/${code}/latest`),
+  predictionHistory: (code: string) => request<Prediction[]>(`predictions/${code}/history`),
+  accuracyOverall: () => request<AccuracyStats>("predictions/accuracy/overall"),
+  accuracyForInstrument: (code: string) =>
+    request<AccuracyStats & { code: string }>(`predictions/${code}/accuracy`),
+  news: (code?: string) => request<NewsArticle[]>(`news${code ? `?code=${code}` : ""}`),
+  paperAccount: () => request<PaperAccount>("paper/account"),
+  paperOrders: () => request<PaperOrder[]>("paper/orders"),
+  placeOrder: (code: string, side: "buy" | "sell", quantity: number) =>
+    request<PaperOrder>("paper/orders", {
+      method: "POST",
+      body: JSON.stringify({ code, side, quantity }),
+    }),
+};
