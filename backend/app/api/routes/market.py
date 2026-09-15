@@ -63,13 +63,13 @@ async def add_to_watchlist(payload: AddWatchlistRequest, session: AsyncSession =
     instrument = result.scalar_one_or_none()
 
     if instrument is None:
-        name, kind = DEFAULT_NAMES.get(code, (code, "individual"))
+        name, kind, sector = DEFAULT_NAMES.get(code, (code, "individual", None))
         try:
             meta = await fetch_symbol_meta(code)
         except YahooFetchError as exc:
             raise HTTPException(status_code=404, detail=f"銘柄コードが見つかりません: {exc}") from exc
         name = meta.get("longName") or meta.get("shortName") or name
-        instrument = Instrument(code=code, name=name, kind=kind)
+        instrument = Instrument(code=code, name=name, kind=kind, sector=sector)
         session.add(instrument)
         await session.flush()
 

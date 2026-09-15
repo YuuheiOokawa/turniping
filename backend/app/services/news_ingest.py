@@ -6,9 +6,18 @@ from urllib.parse import quote
 import feedparser
 
 GENERAL_FEEDS = [
+    # 国内景気・市場
     ("NHK経済", "https://www3.nhk.or.jp/rss/news/cat5.xml"),
     ("GoogleNews-日経平均", "https://news.google.com/rss/search?q=日経平均&hl=ja&gl=JP&ceid=JP:ja"),
+    ("GoogleNews-日本株市場", "https://news.google.com/rss/search?q=日本株+市場+東証&hl=ja&gl=JP&ceid=JP:ja"),
+    # 世界経済・海外市場(円相場や日本株に影響する海外要因を常時収集)
+    ("NHK国際", "https://www3.nhk.or.jp/rss/news/cat6.xml"),
     ("GoogleNews-世界経済", "https://news.google.com/rss/search?q=世界経済+株式市場&hl=ja&gl=JP&ceid=JP:ja"),
+    ("GoogleNews-米国株式市場", "https://news.google.com/rss/search?q=NYダウ+米国株式市場&hl=ja&gl=JP&ceid=JP:ja"),
+    ("GoogleNews-FRB金利", "https://news.google.com/rss/search?q=FRB+利上げ+利下げ&hl=ja&gl=JP&ceid=JP:ja"),
+    ("GoogleNews-為替", "https://news.google.com/rss/search?q=為替+円相場&hl=ja&gl=JP&ceid=JP:ja"),
+    ("GoogleNews-原油価格", "https://news.google.com/rss/search?q=原油価格+資源価格&hl=ja&gl=JP&ceid=JP:ja"),
+    ("GoogleNews-中国経済", "https://news.google.com/rss/search?q=中国経済+景気&hl=ja&gl=JP&ceid=JP:ja"),
 ]
 
 
