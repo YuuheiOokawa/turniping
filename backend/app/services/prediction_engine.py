@@ -17,50 +17,65 @@ def _clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
     return max(low, min(high, value))
 
 
+def _signed(value: float) -> str:
+    return f"+{value:.0f}pt" if value >= 0 else f"{value:.0f}pt"
+
+
 def compute_technical_score(closes: list[float]) -> tuple[float, list[str]]:
-    """テクニカル指標を合成して0-100のスコアと根拠リストを返す(50が中立)。"""
+    """テクニカル指標を合成して0-100のスコアと根拠リストを返す(50が中立)。
+
+    各指標は「閾値を超えたら固定点数」ではなく、指標の実際の大きさに応じて
+    連続的に加減点する(乖離率・RSIの50からの距離・MACDヒストグラムの価格比・
+    %Bなど)。固定閾値だと同じ組み合わせが何度も同じスコアに落ち着き、
+    確信度が特定の値(50%など)に偏って「適当」に見えてしまうため。
+    """
     score = 50.0
     reasons: list[str] = []
 
     sma_short = indicators.sma(closes, 5)
     sma_long = indicators.sma(closes, 25)
-    if sma_short is not None and sma_long is not None:
-        if sma_short > sma_long:
-            score += 15
-            reasons.append("短期移動平均(5)が中期移動平均(25)を上回っており上昇トレンド傾向")
-        else:
-            score -= 15
-            reasons.append("短期移動平均(5)が中期移動平均(25)を下回っており下降トレンド傾向")
+    if sma_short is not None and sma_long is not None and sma_long != 0:
+        pct_diff = (sma_short - sma_long) / sma_long * 100
+        contribution = _clamp(pct_diff * 3, -15, 15)
+        score += contribution
+        if contribution > 1:
+            reasons.append(f"短期移動平均が中期移動平均を{pct_diff:.1f}%上回り上昇トレンド({_signed(contribution)})")
+        elif contribution < -1:
+            reasons.append(f"短期移動平均が中期移動平均を{abs(pct_diff):.1f}%下回り下降トレンド({_signed(contribution)})")
 
     rsi_value = indicators.rsi(closes, 14)
     if rsi_value is not None:
-        if rsi_value < 30:
-            score += 10
-            reasons.append(f"RSIが{rsi_value:.1f}と売られすぎ水準(反発期待)")
-        elif rsi_value > 70:
-            score -= 10
-            reasons.append(f"RSIが{rsi_value:.1f}と買われすぎ水準(反落警戒)")
+        contribution = _clamp((50 - rsi_value) / 50 * 10, -10, 10)
+        score += contribution
+        if rsi_value < 35:
+            reasons.append(f"RSIが{rsi_value:.1f}で売られすぎ寄り({_signed(contribution)})")
+        elif rsi_value > 65:
+            reasons.append(f"RSIが{rsi_value:.1f}で買われすぎ寄り({_signed(contribution)})")
 
     macd_result = indicators.macd(closes)
-    if macd_result is not None:
-        macd_line, signal_line, _hist = macd_result
-        if macd_line > signal_line:
-            score += 10
-            reasons.append("MACDがシグナルラインを上回り上昇モメンタム")
-        else:
-            score -= 10
-            reasons.append("MACDがシグナルラインを下回り下降モメンタム")
+    if macd_result is not None and closes[-1]:
+        _macd_line, _signal_line, hist = macd_result
+        hist_pct = hist / closes[-1] * 100
+        contribution = _clamp(hist_pct * 20, -10, 10)
+        score += contribution
+        if contribution > 1:
+            reasons.append(f"MACDがシグナルを上回りモメンタム上向き({_signed(contribution)})")
+        elif contribution < -1:
+            reasons.append(f"MACDがシグナルを下回りモメンタム下向き({_signed(contribution)})")
 
     bands = indicators.bollinger(closes, 20)
     if bands is not None and closes:
         lower, _mid, upper = bands
         last = closes[-1]
-        if last < lower:
-            score += 5
-            reasons.append("ボリンジャーバンド下限を下回り反発期待")
-        elif last > upper:
-            score -= 5
-            reasons.append("ボリンジャーバンド上限を上回り反落警戒")
+        band_width = upper - lower
+        if band_width > 0:
+            percent_b = (last - lower) / band_width
+            contribution = _clamp((0.5 - percent_b) * 10, -5, 5)
+            score += contribution
+            if percent_b < 0.2:
+                reasons.append(f"ボリンジャーバンド下限付近(%B={percent_b:.2f})で反発期待({_signed(contribution)})")
+            elif percent_b > 0.8:
+                reasons.append(f"ボリンジャーバンド上限付近(%B={percent_b:.2f})で反落警戒({_signed(contribution)})")
 
     return _clamp(score), reasons
 
