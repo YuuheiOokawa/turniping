@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     prediction_interval_minutes: int = 10
     outcome_eval_interval_minutes: int = 15
     prediction_horizon_minutes: int = 60
+    # Google Newsの企業名検索はヒット件数が少ない銘柄も多く、24時間だと
+    # センチメントが拾えない銘柄が大半になる(実データで確認済み)。
+    # 60分先を予想するタスクにはニュースの多少の陳腐化は許容範囲として、
+    # 母数を確保するため48時間まで見る。
+    sentiment_lookback_hours: int = 48
 
     candle_retention_days: int = 90
     news_retention_days: int = 30

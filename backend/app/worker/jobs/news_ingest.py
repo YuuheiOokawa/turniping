@@ -12,7 +12,7 @@ from app.services.news_ingest import RawArticle, fetch_articles_for_instrument, 
 logger = logging.getLogger(__name__)
 
 
-async def _upsert_article(session, article: RawArticle) -> NewsArticle:
+async def _upsert_article(session, article: RawArticle) -> NewsArticle | None:
     existing = await session.execute(select(NewsArticle).where(NewsArticle.url == article.url))
     row = existing.scalar_one_or_none()
     if row is not None:
@@ -28,8 +28,17 @@ async def _upsert_article(session, article: RawArticle) -> NewsArticle:
         sentiment_score=score,
         sentiment_label=sentiment.label_for_score(score),
     )
-    session.add(news)
-    await session.flush()
+
+    # A SAVEPOINT per article: one malformed article (encoding issue, unexpected
+    # field length, etc.) must not abort the whole batch and lose every other
+    # article already fetched this cycle.
+    try:
+        async with session.begin_nested():
+            session.add(news)
+            await session.flush()
+    except Exception as exc:
+        logger.warning("failed to store article %s: %s", article.url[:120], exc)
+        return None
     return news
 
 
@@ -39,7 +48,11 @@ async def _link(session, news_id: int, instrument_id: int) -> None:
         .values(news_id=news_id, instrument_id=instrument_id)
         .on_conflict_do_nothing(constraint="uq_news_instrument")
     )
-    await session.execute(stmt)
+    try:
+        async with session.begin_nested():
+            await session.execute(stmt)
+    except Exception as exc:
+        logger.warning("failed to link news %s to instrument %s: %s", news_id, instrument_id, exc)
 
 
 async def run() -> None:
@@ -61,6 +74,7 @@ async def run() -> None:
                 continue
             for article in articles:
                 news = await _upsert_article(session, article)
-                await _link(session, news.id, instrument.id)
+                if news is not None:
+                    await _link(session, news.id, instrument.id)
 
         await session.commit()

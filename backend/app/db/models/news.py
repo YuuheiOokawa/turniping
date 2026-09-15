@@ -12,7 +12,9 @@ class NewsArticle(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     source: Mapped[str] = mapped_column(String(64))
-    url: Mapped[str] = mapped_column(String(1024), index=True)
+    # Google News RSS links are base64-encoded redirect URLs that routinely
+    # exceed 1024 chars; unbounded Text avoids truncation errors killing the batch.
+    url: Mapped[str] = mapped_column(Text, index=True)
     title: Mapped[str] = mapped_column(Text)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     published_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), index=True)

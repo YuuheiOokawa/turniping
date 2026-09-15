@@ -56,7 +56,7 @@ async def _sync_daily_candles(session, instrument: Instrument) -> list[float]:
 
 
 async def _recent_sentiment(session, instrument_id: int) -> tuple[float, int]:
-    since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=24)
+    since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=settings.sentiment_lookback_hours)
     result = await session.execute(
         select(NewsArticle.sentiment_score)
         .join(NewsInstrumentLink, NewsInstrumentLink.news_id == NewsArticle.id)
