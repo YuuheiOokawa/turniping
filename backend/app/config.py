@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.instruments_catalog import DEFAULT_WATCHLIST_CSV
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
@@ -30,18 +32,7 @@ class Settings(BaseSettings):
     candle_retention_days: int = 90
     news_retention_days: int = 30
 
-    default_watchlist: str = (
-        "^N225,1306.T,"
-        "7203.T,7267.T,7201.T,"
-        "6758.T,6501.T,6702.T,6861.T,"
-        "9984.T,9432.T,9433.T,6098.T,"
-        "8306.T,8316.T,8411.T,8604.T,"
-        "8058.T,8031.T,8001.T,"
-        "9983.T,3382.T,"
-        "4502.T,4503.T,"
-        "5401.T,"
-        "7974.T"
-    )
+    default_watchlist: str = DEFAULT_WATCHLIST_CSV
 
     paper_starting_cash_jpy: int = 1_000_000
 
