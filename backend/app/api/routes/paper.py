@@ -4,10 +4,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import require_auth
-from app.db.models.market import Instrument, PriceCandle
+from app.db.models.market import Instrument
 from app.db.models.paper import PaperOrder, PaperPosition
 from app.db.session import get_session
-from app.market_data.yahoo_jp import YahooFetchError, fetch_latest_price
 from app.services import paper_trading
 
 router = APIRouter(prefix="/paper", tags=["paper"], dependencies=[Depends(require_auth)])
@@ -19,29 +18,9 @@ class PlaceOrderRequest(BaseModel):
     quantity: int = Field(gt=0)
 
 
-async def _current_price(session: AsyncSession, instrument: Instrument) -> float:
-    result = await session.execute(
-        select(PriceCandle.close)
-        .where(PriceCandle.instrument_id == instrument.id)
-        .order_by(PriceCandle.ts.desc())
-        .limit(1)
-    )
-    row = result.scalar_one_or_none()
-    if row is not None:
-        return float(row)
-
-    try:
-        candle = await fetch_latest_price(instrument.code)
-    except YahooFetchError as exc:
-        raise HTTPException(status_code=502, detail=f"価格取得に失敗しました: {exc}") from exc
-    if candle is None:
-        raise HTTPException(status_code=502, detail="現在値を取得できませんでした")
-    return candle.close
-
-
 @router.get("/account")
 async def get_account(session: AsyncSession = Depends(get_session)) -> dict:
-    account = await paper_trading.get_or_create_account(session)
+    account = await paper_trading.get_or_create_account(session, kind="manual")
     await session.commit()
 
     result = await session.execute(
@@ -63,7 +42,7 @@ async def get_account(session: AsyncSession = Depends(get_session)) -> dict:
 
 @router.get("/orders")
 async def list_orders(limit: int = 50, session: AsyncSession = Depends(get_session)) -> list[dict]:
-    account = await paper_trading.get_or_create_account(session)
+    account = await paper_trading.get_or_create_account(session, kind="manual")
     await session.commit()
 
     result = await session.execute(
@@ -93,11 +72,17 @@ async def place_order(payload: PlaceOrderRequest, session: AsyncSession = Depend
     if instrument is None:
         raise HTTPException(status_code=404, detail="instrument not found")
 
-    price = await _current_price(session, instrument)
+    try:
+        price = await paper_trading.get_current_price(session, instrument)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    account = await paper_trading.get_or_create_account(session, kind="manual")
 
     try:
         order = await paper_trading.place_order(
             session,
+            account_id=account.id,
             instrument_id=instrument.id,
             side=payload.side,
             quantity=payload.quantity,

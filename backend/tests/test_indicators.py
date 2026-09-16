@@ -42,3 +42,21 @@ def test_bollinger_bounds_order():
     assert bands is not None
     lower, mid, upper = bands
     assert lower < mid < upper
+
+
+def test_volume_ratio_insufficient_data_returns_none():
+    assert indicators.volume_ratio([100] * 10, period=20) is None
+
+
+def test_volume_ratio_above_average():
+    volumes = [100.0] * 20 + [300.0]
+    ratio = indicators.volume_ratio(volumes, period=20)
+    assert ratio == 3.0
+
+
+def test_volume_ratio_zero_baseline_returns_none():
+    assert indicators.volume_ratio([0.0] * 20 + [100.0], period=20) is None
+
+
+def test_volume_ratio_zero_latest_returns_none():
+    assert indicators.volume_ratio([100.0] * 20 + [0.0], period=20) is None

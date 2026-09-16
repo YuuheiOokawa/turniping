@@ -71,6 +71,59 @@ export type AccuracyStats = {
   accuracy_pct: number | null;
 };
 
+export type StrategySignalWeight = {
+  signal_name: string;
+  weight: number;
+  accuracy_pct: number | null;
+  sample_size: number;
+  updated_at: string;
+};
+
+export type AiPosition = {
+  code: string;
+  name: string;
+  quantity: number;
+  avg_price: number;
+  current_price: number;
+  market_value: number;
+  unrealized_pnl_jpy: number;
+  unrealized_pnl_pct: number;
+};
+
+export type AiAccount = {
+  cash_jpy: number;
+  holdings_value_jpy: number;
+  total_value_jpy: number;
+  positions: AiPosition[];
+};
+
+export type AiPerformance = {
+  starting_cash_jpy: number;
+  cash_jpy: number;
+  holdings_value_jpy: number;
+  total_value_jpy: number;
+  pnl_jpy: number;
+  pnl_pct: number;
+};
+
+export type AiOrder = {
+  id: number;
+  code: string;
+  name: string;
+  side: "buy" | "sell";
+  quantity: number;
+  fill_price: number;
+  filled_at: string;
+  reason: string | null;
+};
+
+export type AiValuationPoint = {
+  ts: string;
+  cash_jpy: number;
+  holdings_value_jpy: number;
+  total_value_jpy: number;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api/backend/${path}`, {
     ...init,
@@ -100,6 +153,7 @@ export const api = {
   latestPrediction: (code: string) => request<Prediction | null>(`predictions/${code}/latest`),
   predictionHistory: (code: string) => request<Prediction[]>(`predictions/${code}/history`),
   accuracyOverall: () => request<AccuracyStats>("predictions/accuracy/overall"),
+  strategyWeights: () => request<StrategySignalWeight[]>("predictions/strategy-weights"),
   accuracyForInstrument: (code: string) =>
     request<AccuracyStats & { code: string }>(`predictions/${code}/accuracy`),
   news: (code?: string) => request<NewsArticle[]>(`news${code ? `?code=${code}` : ""}`),
@@ -110,4 +164,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ code, side, quantity }),
     }),
+  aiAccount: () => request<AiAccount>("ai-trading/account"),
+  aiPerformance: () => request<AiPerformance>("ai-trading/performance"),
+  aiOrders: () => request<AiOrder[]>("ai-trading/orders"),
+  aiHistory: () => request<AiValuationPoint[]>("ai-trading/history"),
 };

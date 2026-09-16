@@ -7,7 +7,15 @@ from apscheduler.triggers.interval import IntervalTrigger
 from app.bootstrap import seed_default_watchlist
 from app.config import get_settings
 from app.db.session import session_scope
-from app.worker.jobs import news_ingest, outcome_eval, prediction_compute, price_poll, retention
+from app.worker.jobs import (
+    auto_trader,
+    news_ingest,
+    outcome_eval,
+    prediction_compute,
+    price_poll,
+    retention,
+    strategy_learning,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("turniping.worker")
@@ -42,6 +50,14 @@ async def _retention_job() -> None:
     await _run_safely("retention", retention.run)
 
 
+async def _auto_trader_job() -> None:
+    await _run_safely("auto_trader", auto_trader.run)
+
+
+async def _strategy_learning_job() -> None:
+    await _run_safely("strategy_learning", strategy_learning.run)
+
+
 def build_scheduler() -> AsyncIOScheduler:
     # NOTE: each job below must be a real `async def` function (a coroutine
     # function), not a lambda wrapping one. APScheduler's AsyncIOExecutor
@@ -50,7 +66,15 @@ def build_scheduler() -> AsyncIOScheduler:
     # so the executor runs it in a worker thread instead, the returned
     # coroutine is never awaited, and the job silently does nothing while
     # still logging "executed successfully".
-    scheduler = AsyncIOScheduler(timezone="Asia/Tokyo")
+    # misfire_grace_time: APScheduler's default is 1 second — if a job's fire
+    # time is missed by more than that (e.g. because a slow-running job like
+    # prediction_compute is still occupying the loop), it's skipped entirely
+    # rather than run late. That silent-skip is exactly what left outcome_eval
+    # not running for ~15 hours during a Yahoo Finance outage. A generous
+    # grace window means a briefly-delayed job still runs instead of vanishing.
+    scheduler = AsyncIOScheduler(
+        timezone="Asia/Tokyo", job_defaults={"misfire_grace_time": 300}
+    )
 
     scheduler.add_job(
         _price_poll_job,
@@ -84,6 +108,20 @@ def build_scheduler() -> AsyncIOScheduler:
         _retention_job,
         IntervalTrigger(hours=24),
         id="retention",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _auto_trader_job,
+        IntervalTrigger(minutes=settings.auto_trader_interval_minutes),
+        id="auto_trader",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _strategy_learning_job,
+        IntervalTrigger(minutes=settings.strategy_learning_interval_minutes),
+        id="strategy_learning",
         max_instances=1,
         coalesce=True,
     )

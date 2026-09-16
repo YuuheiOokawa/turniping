@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import market, news, paper, predictions, system
+from app.api.routes import ai_trading, market, news, paper, predictions, system
 from app.bootstrap import seed_default_watchlist
 from app.config import get_settings
 from app.db.session import session_scope
@@ -43,4 +43,5 @@ app.include_router(market.router, prefix="/api/v1")
 app.include_router(predictions.router, prefix="/api/v1")
 app.include_router(news.router, prefix="/api/v1")
 app.include_router(paper.router, prefix="/api/v1")
+app.include_router(ai_trading.router, prefix="/api/v1")
 app.include_router(ws_prices.router)

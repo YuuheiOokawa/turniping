@@ -31,7 +31,7 @@ async def _get_chart_json(symbol: str, params: dict) -> dict:
     予想生成など)が落ちる、という事故を防ぐ。
     """
     try:
-        async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": USER_AGENT}) as client:
+        async with httpx.AsyncClient(timeout=8.0, headers={"User-Agent": USER_AGENT}) as client:
             resp = await client.get(CHART_URL.format(symbol=symbol), params=params)
     except httpx.HTTPError as exc:
         raise YahooFetchError(f"yahoo chart request failed for {symbol}: {exc}") from exc

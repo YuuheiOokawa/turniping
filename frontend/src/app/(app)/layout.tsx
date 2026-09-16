@@ -5,6 +5,7 @@ const NAV = [
   { href: "/news", label: "ニュース" },
   { href: "/accuracy", label: "的中率" },
   { href: "/paper", label: "ペーパートレード" },
+  { href: "/ai-trading", label: "AI自動売買" },
   { href: "/guide", label: "用語ガイド" },
   { href: "/system", label: "システム" },
 ];

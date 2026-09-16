@@ -60,3 +60,23 @@ def bollinger(closes: list[float], period: int = 20, num_std: float = 2.0) -> tu
     variance = sum((c - mid) ** 2 for c in window) / period
     std = variance**0.5
     return mid - num_std * std, mid, mid + num_std * std
+
+
+def volume_ratio(volumes: list[float], period: int = 20) -> float | None:
+    """直近出来高 ÷ 直前period日平均出来高。1.0が平均並み、大きいほど商いが伴っている。
+
+    指数(日経平均など)はvolumeが0で記録されることがあるため、平均が0や
+    直近値が0の場合はNoneを返して「判断材料なし」として扱う。
+    """
+    if len(volumes) < period + 1:
+        return None
+    latest = volumes[-1]
+    if not latest or latest <= 0:
+        return None
+    baseline = [v for v in volumes[-(period + 1) : -1] if v and v > 0]
+    if not baseline:
+        return None
+    avg = sum(baseline) / len(baseline)
+    if avg <= 0:
+        return None
+    return latest / avg

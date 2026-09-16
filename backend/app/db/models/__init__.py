@@ -1,7 +1,8 @@
 from app.db.models.market import Instrument, PriceCandle, Watchlist
 from app.db.models.news import NewsArticle, NewsInstrumentLink
-from app.db.models.paper import PaperAccount, PaperOrder, PaperPosition
+from app.db.models.paper import PaperAccount, PaperOrder, PaperPosition, PaperValuationSnapshot
 from app.db.models.prediction import Prediction, PredictionOutcome
+from app.db.models.strategy import StrategySignalWeight
 
 __all__ = [
     "Instrument",
@@ -12,6 +13,8 @@ __all__ = [
     "PaperAccount",
     "PaperOrder",
     "PaperPosition",
+    "PaperValuationSnapshot",
     "Prediction",
     "PredictionOutcome",
+    "StrategySignalWeight",
 ]

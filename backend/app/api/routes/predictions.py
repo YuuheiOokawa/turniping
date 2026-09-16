@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import require_auth
 from app.db.models.market import Instrument
 from app.db.models.prediction import Prediction, PredictionOutcome
+from app.db.models.strategy import StrategySignalWeight
 from app.db.session import get_session
 
 router = APIRouter(prefix="/predictions", tags=["predictions"], dependencies=[Depends(require_auth)])
@@ -72,6 +73,22 @@ async def accuracy_overall(session: AsyncSession = Depends(get_session)) -> dict
     correct = int(correct_sum) if correct_sum is not None else 0
     accuracy = (correct / total * 100) if total else None
     return {"total_evaluated": total, "correct": correct, "accuracy_pct": accuracy}
+
+
+@router.get("/strategy-weights")
+async def strategy_weights(session: AsyncSession = Depends(get_session)) -> list[dict]:
+    """自己学習が答え合わせ実績から調整した、各シグナルの現在の重みと的中率。"""
+    result = await session.execute(select(StrategySignalWeight).order_by(StrategySignalWeight.signal_name))
+    return [
+        {
+            "signal_name": row.signal_name,
+            "weight": row.weight,
+            "accuracy_pct": row.accuracy * 100 if row.accuracy is not None else None,
+            "sample_size": row.sample_size,
+            "updated_at": row.updated_at.isoformat(),
+        }
+        for row in result.scalars().all()
+    ]
 
 
 @router.get("/{code}/accuracy")

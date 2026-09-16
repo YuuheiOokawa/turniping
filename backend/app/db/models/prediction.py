@@ -21,6 +21,9 @@ class Prediction(Base):
     sentiment_score: Mapped[float] = mapped_column(Float)
     reference_price: Mapped[float] = mapped_column(Float)
     reasons: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # signal_name -> 生の(重み適用前の)方向シグナル値。正=強気, 負=弱気, 0/欠落=意見なし。
+    # 答え合わせ後にどのシグナルが実際に当たっていたかを振り返る自己学習で使う。
+    signal_contributions: Mapped[dict] = mapped_column(JSON, default=dict)
 
     outcome: Mapped["PredictionOutcome | None"] = relationship(back_populates="prediction", uselist=False)
 

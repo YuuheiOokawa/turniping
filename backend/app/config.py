@@ -41,6 +41,21 @@ class Settings(BaseSettings):
 
     paper_starting_cash_jpy: int = 1_000_000
 
+    # AI自動売買シミュレーション(ユーザーの手動ペーパートレードとは別口座)
+    ai_trader_starting_cash_jpy: int = 50_000
+    auto_trader_interval_minutes: int = 10
+    # 1銘柄あたりの最大投資額。5万円全額を1銘柄に賭けさせず、複数銘柄に分散させるため上限を設ける。
+    auto_trader_max_position_jpy: int = 10_000
+    # prediction_engineの連続スコアリング方式では、実データ上の確信度は
+    # 中央値17%・90パーセンタイル34%程度で、60%はほぼ出現しない(実測済み)。
+    # 「上位1割程度の強いシグナルのみで動く」を狙い、90パーセンタイル近辺の
+    # 35%を既定閾値とする。
+    auto_trader_buy_confidence_threshold: float = 35.0
+    auto_trader_sell_confidence_threshold: float = 35.0
+
+    # 自己学習: 答え合わせ実績から各シグナルの重みを再計算する頻度。
+    strategy_learning_interval_minutes: int = 60
+
     @property
     def allowed_origins_list(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
