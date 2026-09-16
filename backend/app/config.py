@@ -55,6 +55,10 @@ class Settings(BaseSettings):
 
     # 自己学習: 答え合わせ実績から各シグナルの重みを再計算する頻度。
     strategy_learning_interval_minutes: int = 60
+    # バックテスト: 過去の日足からシグナルの学習サンプルを生成する頻度(時間)。
+    # 過去データ自体は頻繁に変わらないため長めの間隔にし、既存日付は
+    # スキップされるため再実行コストも小さい。
+    backtest_interval_hours: int = 24
 
     @property
     def allowed_origins_list(self) -> list[str]:

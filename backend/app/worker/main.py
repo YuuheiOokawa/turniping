@@ -9,6 +9,7 @@ from app.config import get_settings
 from app.db.session import session_scope
 from app.worker.jobs import (
     auto_trader,
+    backtest,
     news_ingest,
     outcome_eval,
     prediction_compute,
@@ -56,6 +57,10 @@ async def _auto_trader_job() -> None:
 
 async def _strategy_learning_job() -> None:
     await _run_safely("strategy_learning", strategy_learning.run)
+
+
+async def _backtest_job() -> None:
+    await _run_safely("backtest", backtest.run)
 
 
 def build_scheduler() -> AsyncIOScheduler:
@@ -122,6 +127,13 @@ def build_scheduler() -> AsyncIOScheduler:
         _strategy_learning_job,
         IntervalTrigger(minutes=settings.strategy_learning_interval_minutes),
         id="strategy_learning",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _backtest_job,
+        IntervalTrigger(hours=settings.backtest_interval_hours),
+        id="backtest",
         max_instances=1,
         coalesce=True,
     )

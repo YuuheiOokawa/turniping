@@ -17,6 +17,10 @@ export default function AccuracyPage() {
   const { data: overall } = useQuery({ queryKey: ["accuracy-overall"], queryFn: api.accuracyOverall });
   const { data: instruments } = useQuery({ queryKey: ["instruments"], queryFn: api.instruments });
   const { data: weights } = useQuery({ queryKey: ["strategy-weights"], queryFn: api.strategyWeights });
+  const { data: backtestSummary } = useQuery({
+    queryKey: ["backtest-summary"],
+    queryFn: api.backtestSummary,
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -48,6 +52,11 @@ export default function AccuracyPage() {
           答え合わせの実績をもとに、各シグナルが単独でどれだけ方向を当てられていたかを定期的に振り返り、
           的中率が高いシグナルほど重み(発言力)を強め、外れが多いシグナルほど弱めています(1.0が既定値)。
           十分な件数(20件)が溜まるまではまだ調整されません。
+        </p>
+        <p className="mb-3 text-xs text-neutral-500">
+          {backtestSummary && backtestSummary.total_samples > 0
+            ? `過去の日足による検証データ: ${backtestSummary.total_samples.toLocaleString()}件(${backtestSummary.instrument_count}銘柄、${backtestSummary.earliest_date}〜${backtestSummary.latest_date})。ライブの答え合わせだけでなく、このバックテストデータも学習に使われます。`
+            : "過去の日足によるバックテストデータはまだ生成されていません(1日1回、自動で蓄積されます)。"}
         </p>
         {weights && weights.length > 0 ? (
           <ul className="flex flex-col divide-y divide-neutral-100 dark:divide-neutral-800">

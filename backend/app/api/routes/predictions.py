@@ -3,6 +3,7 @@ from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import require_auth
+from app.db.models.backtest import BacktestSignalSample
 from app.db.models.market import Instrument
 from app.db.models.prediction import Prediction, PredictionOutcome
 from app.db.models.strategy import StrategySignalWeight
@@ -89,6 +90,26 @@ async def strategy_weights(session: AsyncSession = Depends(get_session)) -> list
         }
         for row in result.scalars().all()
     ]
+
+
+@router.get("/backtest-summary")
+async def backtest_summary(session: AsyncSession = Depends(get_session)) -> dict:
+    """過去の日足から生成したバックテスト学習サンプルの蓄積状況。"""
+    result = await session.execute(
+        select(
+            func.count(BacktestSignalSample.id),
+            func.count(func.distinct(BacktestSignalSample.instrument_id)),
+            func.min(BacktestSignalSample.as_of_date),
+            func.max(BacktestSignalSample.as_of_date),
+        )
+    )
+    total_samples, instrument_count, earliest, latest = result.one()
+    return {
+        "total_samples": total_samples or 0,
+        "instrument_count": instrument_count or 0,
+        "earliest_date": earliest.isoformat() if earliest else None,
+        "latest_date": latest.isoformat() if latest else None,
+    }
 
 
 @router.get("/{code}/accuracy")

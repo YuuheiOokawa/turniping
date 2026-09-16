@@ -4,6 +4,7 @@ import math
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models.backtest import BacktestSignalSample
 from app.db.models.prediction import Prediction, PredictionOutcome
 from app.db.models.strategy import StrategySignalWeight
 from app.services.prediction_engine import LEARNABLE_SIGNALS
@@ -24,18 +25,33 @@ async def load_weights(session: AsyncSession) -> dict[str, float]:
 
 
 async def recalibrate(session: AsyncSession) -> list[dict]:
-    """答え合わせ済みの予想を振り返り、各シグナルが単独でどれだけ方向を
-    当てられていたかを集計し、Multiplicative Weights (Hedge) アルゴリズムで
-    重みを更新する。的中率が高いシグナルほど重み(発言力)が増し、外れが
-    多いシグナルほど重みが下がる。ブラックボックスなMLではなく、
-    「どのシグナルが何%的中し、重みがいくつになったか」を常に説明できる形。
+    """ライブの答え合わせ実績 + 過去の日足から生成したバックテストサンプルを
+    合わせて振り返り、各シグナルが単独でどれだけ方向を当てられていたかを
+    集計し、Multiplicative Weights (Hedge) アルゴリズムで重みを更新する。
+    的中率が高いシグナルほど重み(発言力)が増し、外れが多いシグナルほど
+    重みが下がる。ブラックボックスなMLではなく、「どのシグナルが何%的中し、
+    重みがいくつになったか」を常に説明できる形。
+
+    ライブの答え合わせだけでは(60分先の予想を市場が開いている間しか
+    評価できないため)十分な件数が溜まるまでに何日もかかる。過去の日足を
+    使ったバックテストサンプルを同じ集計に混ぜることで、統計的な確からしさを
+    大幅に前倒しで得られる(ただしバックテストは「翌営業日の終値」、ライブは
+    「60分後」という異なる時間軸の近似であることには留意)。
     """
-    result = await session.execute(
+    live_result = await session.execute(
         select(Prediction.signal_contributions, PredictionOutcome.actual_change_pct).join(
             PredictionOutcome, PredictionOutcome.prediction_id == Prediction.id
         )
     )
-    rows = result.all()
+    live_rows = [
+        (contributions, "up" if change_pct >= 0 else "down")
+        for contributions, change_pct in live_result.all()
+    ]
+
+    backtest_result = await session.execute(
+        select(BacktestSignalSample.signal_contributions, BacktestSignalSample.actual_direction)
+    )
+    all_rows = live_rows + list(backtest_result.all())
 
     existing = {row.signal_name: row for row in (await session.scalars(select(StrategySignalWeight))).all()}
 
@@ -43,12 +59,11 @@ async def recalibrate(session: AsyncSession) -> list[dict]:
     for signal_name in LEARNABLE_SIGNALS:
         hits = 0
         total = 0
-        for contributions, actual_change_pct in rows:
+        for contributions, actual_direction in all_rows:
             contribution = (contributions or {}).get(signal_name)
             if not contribution:
                 continue
             signal_direction = "up" if contribution > 0 else "down"
-            actual_direction = "up" if actual_change_pct >= 0 else "down"
             total += 1
             if signal_direction == actual_direction:
                 hits += 1

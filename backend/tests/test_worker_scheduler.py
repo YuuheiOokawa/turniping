@@ -12,7 +12,7 @@ def test_all_jobs_are_real_coroutine_functions():
     """
     scheduler = build_scheduler()
     jobs = scheduler.get_jobs()
-    assert len(jobs) == 7
+    assert len(jobs) == 8
 
     for job in jobs:
         assert inspect.iscoroutinefunction(job.func), (

@@ -79,6 +79,13 @@ export type StrategySignalWeight = {
   updated_at: string;
 };
 
+export type BacktestSummary = {
+  total_samples: number;
+  instrument_count: number;
+  earliest_date: string | null;
+  latest_date: string | null;
+};
+
 export type AiPosition = {
   code: string;
   name: string;
@@ -154,6 +161,7 @@ export const api = {
   predictionHistory: (code: string) => request<Prediction[]>(`predictions/${code}/history`),
   accuracyOverall: () => request<AccuracyStats>("predictions/accuracy/overall"),
   strategyWeights: () => request<StrategySignalWeight[]>("predictions/strategy-weights"),
+  backtestSummary: () => request<BacktestSummary>("predictions/backtest-summary"),
   accuracyForInstrument: (code: string) =>
     request<AccuracyStats & { code: string }>(`predictions/${code}/accuracy`),
   news: (code?: string) => request<NewsArticle[]>(`news${code ? `?code=${code}` : ""}`),
